@@ -318,10 +318,6 @@ export default function ChatList() {
                         <div className="text-instagram-blue text-sm">사용자 목록 불러오는 중...</div>
                       </div>
                     </div>
-                  ) : usersList.length === 0 ? (
-                    <div className="text-center py-10 bg-gray-50 rounded-lg border border-gray-200">
-                      <p className="text-gray-500">등록된 사용자가 없습니다</p>
-                    </div>
                   ) : (
                     <div className="max-h-96 overflow-y-auto mb-4">
                       <table className="min-w-full bg-white border border-gray-200 rounded-md">
