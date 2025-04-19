@@ -141,7 +141,7 @@ export default function ChatList() {
           <p className="text-gray-500 mb-4">채팅방이 없습니다</p>
           <Link 
             href="/chat/new"
-            className="bg-instagram-blue text-white px-4 py-2 rounded-md hover:bg-instagram-purple transition-colors"
+            className="bg-instagram-blue text-white px-4 py-2 rounded-md hover:bg-instagram-purple transition-colors w-24 text-center inline-block"
           >
             첫 채팅방 만들기
           </Link>
@@ -216,13 +216,13 @@ export default function ChatList() {
                   setAdminPassword('');
                   setAdminError('');
                 }}
-                className="px-4 py-2 text-instagram-darkpurple border border-instagram-purple rounded-md hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-instagram-darkpurple border border-instagram-purple rounded-md hover:bg-gray-50 transition-colors w-24 text-center"
               >
                 취소
               </button>
               <button
                 onClick={handleAdminLogin}
-                className="px-4 py-2 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple transition-colors"
+                className="px-4 py-2 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple transition-colors w-24 text-center"
               >
                 확인
               </button>
