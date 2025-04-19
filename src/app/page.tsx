@@ -37,6 +37,7 @@ export default function Home() {
           <div className="instagram-gradient h-12 w-12 rounded-full mx-auto mb-4"></div>
           <h1 className="text-4xl font-extrabold text-gray-900 mb-2">실시간 채팅</h1>
           <p className="text-gray-600">닉네임을 입력하고 채팅에 참여하세요</p>
+          <p className="text-instagram-red font-medium mt-2">학생 본인 이름을 꼭 입력해 주세요</p>
         </div>
         
         <div className="h-1 w-full instagram-gradient rounded-full"></div>
