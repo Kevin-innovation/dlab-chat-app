@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -9,101 +9,125 @@ import Link from 'next/link';
 
 export default function NewChatRoom() {
   const router = useRouter();
-  const { user, isLoading } = useUser();
+  const { user, isLoading, checkAdminPassword } = useUser();
   const [roomName, setRoomName] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [password, setPassword] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminPasswordError, setAdminPasswordError] = useState('');
 
-  // 사용자가 로그인하지 않은 경우 처리
-  if (!isLoading && !user) {
-    router.push('/');
-    return null;
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/');
+    }
+  }, [isLoading, user, router]);
+
+  if (isLoading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 border-4 border-instagram-blue rounded-full border-t-transparent animate-spin mb-4"></div>
+          <div className="text-instagram-blue font-medium">로딩 중...</div>
+        </div>
+      </div>
+    );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setErrorMsg('');
+    setAdminPasswordError('');
+
     if (!roomName.trim()) {
-      setError('채팅방 이름을 입력해주세요.');
+      setErrorMsg('채팅방 이름을 입력해주세요.');
       return;
     }
-    
-    setIsSubmitting(true);
-    setError('');
-    
+
+    if (!checkAdminPassword(adminPassword)) {
+      setAdminPasswordError('올바른 비밀번호를 입력해주세요.');
+      return;
+    }
+
     try {
-      // 채팅방 생성
-      const docRef = await addDoc(collection(db, 'chatRooms'), {
+      await addDoc(collection(db, 'chatRooms'), {
         name: roomName,
-        createdAt: serverTimestamp(),
-        createdBy: user?.id,
-        creatorNickname: user?.nickname,
+        password: password || null,
+        createdAt: new Date(),
+        createdBy: user.id,
       });
-      
-      // 성공적으로 생성된 경우 해당 채팅방으로 이동
-      router.push(`/chat/${docRef.id}`);
+      router.push('/chat');
     } catch (error) {
-      console.error('채팅방 생성 실패:', error);
-      setError('채팅방을 생성하는 중 오류가 발생했습니다. 다시 시도해주세요.');
-      setIsSubmitting(false);
+      console.error('Error creating chat room:', error);
+      setErrorMsg('채팅방 생성 중 오류가 발생했습니다.');
     }
   };
-  
-  return (
-    <div className="max-w-xl mx-auto p-4">
-      <div className="mb-6">
-        <Link 
-          href="/chat"
-          className="text-instagram-blue hover:text-instagram-purple flex items-center gap-1"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-          <span>채팅방 목록으로 돌아가기</span>
-        </Link>
-      </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100">
-        <div className="flex items-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-800">새 채팅방 만들기</h1>
-          <div className="h-1 w-10 instagram-gradient rounded-full ml-3"></div>
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <div className="flex items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">새 채팅방 생성</h1>
+          <div className="h-1 w-16 instagram-gradient rounded-full ml-3"></div>
         </div>
         
-        <div className="h-1 w-full instagram-gradient rounded-full mb-6"></div>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="roomName" className="block text-sm font-medium text-gray-700 mb-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="roomName" className="block text-sm font-medium text-gray-700 mb-1">
               채팅방 이름
             </label>
             <input
-              id="roomName"
               type="text"
+              id="roomName"
               value={roomName}
               onChange={(e) => setRoomName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue focus:border-transparent text-gray-800 bg-white"
-              placeholder="채팅방 이름을 입력하세요"
-              disabled={isSubmitting}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue"
+              placeholder="채팅방 이름 입력"
             />
-            {error && <p className="mt-2 text-sm text-instagram-red">{error}</p>}
           </div>
           
-          <div className="flex justify-end">
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              비밀번호 (선택)
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue"
+              placeholder="비밀번호 입력 (선택)"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              관리자 비밀번호
+            </label>
+            <input
+              type="password"
+              id="adminPassword"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue"
+              placeholder="관리자 비밀번호 입력 (필수)"
+            />
+            {adminPasswordError && <p className="text-red-500 text-sm mt-1">{adminPasswordError}</p>}
+          </div>
+          
+          {errorMsg && <p className="text-red-500 text-sm">{errorMsg}</p>}
+          
+          <div className="flex justify-between gap-4 pt-2">
+            <Link
+              href="/chat"
+              className="w-full py-2 px-4 border border-instagram-purple text-instagram-darkpurple rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-instagram-blue text-center"
+            >
+              취소
+            </Link>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className={`${
-                isSubmitting 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-instagram-blue hover:bg-instagram-purple cursor-pointer'
-              } text-white px-4 py-2 rounded-md transition-colors`}
+              className="w-full py-2 px-4 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple focus:outline-none focus:ring-2 focus:ring-instagram-blue"
             >
-              {isSubmitting ? (
-                <div className="flex items-center">
-                  <div className="w-4 h-4 border-2 border-white rounded-full border-t-transparent animate-spin mr-2"></div>
-                  <span>생성 중...</span>
-                </div>
-              ) : '채팅방 생성하기'}
+              생성하기
             </button>
           </div>
         </form>

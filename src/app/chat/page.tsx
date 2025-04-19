@@ -116,13 +116,13 @@ export default function ChatList() {
           <span className="text-gray-600">{user.nickname}님</span>
           <button 
             onClick={() => setShowAdminModal(true)}
-            className="bg-instagram-purple text-white px-3 py-1 rounded-md hover:bg-instagram-darkpurple transition-colors text-sm"
+            className="bg-instagram-purple text-white px-4 py-2 rounded-md hover:bg-instagram-darkpurple transition-colors w-24 text-center"
           >
             관리자
           </button>
           <Link 
             href="/chat/new"
-            className="bg-instagram-blue text-white px-4 py-2 rounded-md hover:bg-instagram-purple transition-colors"
+            className="bg-instagram-blue text-white px-4 py-2 rounded-md hover:bg-instagram-purple transition-colors w-24 text-center"
           >
             새 채팅방
           </Link>
