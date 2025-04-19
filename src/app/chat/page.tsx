@@ -181,24 +181,24 @@ export default function ChatList() {
             {isAdmin && (
               <Link
                 href="/chat/admin"
-                className="bg-instagram-purple text-white px-3 py-2 rounded-md hover:bg-instagram-darkpurple transition-colors text-center min-w-[100px]"
+                className="bg-instagram-purple text-white px-3 py-2 rounded-md hover:bg-instagram-darkpurple transition-colors text-center min-w-[100px] flex items-center justify-center"
               >
-                관리자
+                <span>관리자</span>
               </Link>
             )}
             {!isAdmin && (
               <button 
                 onClick={() => setShowAdminModal(true)}
-                className="bg-instagram-purple text-white px-3 py-2 rounded-md hover:bg-instagram-darkpurple transition-colors text-center min-w-[100px]"
+                className="bg-instagram-purple text-white px-3 py-2 rounded-md hover:bg-instagram-darkpurple transition-colors text-center min-w-[100px] flex items-center justify-center"
               >
-                관리자
+                <span>관리자</span>
               </button>
             )}
             <Link 
               href="/chat/new"
-              className="bg-instagram-blue text-white px-3 py-2 rounded-md hover:bg-instagram-purple transition-colors text-center min-w-[100px]"
+              className="bg-instagram-blue text-white px-3 py-2 rounded-md hover:bg-instagram-purple transition-colors text-center min-w-[100px] flex items-center justify-center"
             >
-              새 채팅방
+              <span>새 채팅방</span>
             </Link>
           </div>
         </div>

@@ -119,9 +119,9 @@ export default function AdminPage() {
           </div>
           <Link
             href="/chat"
-            className="bg-instagram-blue text-white px-3 py-2 rounded-md hover:bg-instagram-purple transition-colors min-w-[100px] text-center"
+            className="bg-instagram-blue text-white px-3 py-2 rounded-md hover:bg-instagram-purple transition-colors min-w-[100px] text-center flex items-center justify-center"
           >
-            채팅방 목록
+            <span>채팅방</span>
           </Link>
         </div>
 
@@ -150,31 +150,31 @@ export default function AdminPage() {
               <table className="min-w-full bg-white border border-gray-200 rounded-md">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="py-2 px-4 border-b text-left">닉네임</th>
-                    <th className="py-2 px-4 border-b text-left">사용자 ID</th>
-                    <th className="py-2 px-4 border-b text-left">생성일</th>
-                    <th className="py-2 px-4 border-b text-left">관리자</th>
-                    <th className="py-2 px-4 border-b text-right">작업</th>
+                    <th className="py-2 px-3 border-b text-left text-xs font-medium text-gray-600">닉네임</th>
+                    <th className="py-2 px-3 border-b text-left text-xs font-medium text-gray-600">사용자 ID</th>
+                    <th className="py-2 px-3 border-b text-left text-xs font-medium text-gray-600">생성일</th>
+                    <th className="py-2 px-3 border-b text-left text-xs font-medium text-gray-600">관리자</th>
+                    <th className="py-2 px-3 border-b text-right text-xs font-medium text-gray-600">작업</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((userItem) => (
                     <tr key={userItem.id} className="hover:bg-gray-50">
-                      <td className="py-2 px-4 border-b">{userItem.nickname}</td>
-                      <td className="py-2 px-4 border-b text-xs text-gray-500">{userItem.id}</td>
-                      <td className="py-2 px-4 border-b text-sm">{formatDate(userItem.createdAt)}</td>
-                      <td className="py-2 px-4 border-b">
+                      <td className="py-2 px-3 border-b text-sm">{userItem.nickname}</td>
+                      <td className="py-2 px-3 border-b text-xs text-gray-500 truncate max-w-[120px]">{userItem.id}</td>
+                      <td className="py-2 px-3 border-b text-xs">{formatDate(userItem.createdAt)}</td>
+                      <td className="py-2 px-3 border-b">
                         {userItem.isAdmin ? (
-                          <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">관리자</span>
+                          <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">관리자</span>
                         ) : (
-                          <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">일반</span>
+                          <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full">일반</span>
                         )}
                       </td>
-                      <td className="py-2 px-4 border-b text-right">
+                      <td className="py-2 px-3 border-b text-right">
                         <button
                           onClick={() => handleDeleteUser(userItem.id)}
                           disabled={deleteLoading === userItem.id || userItem.isAdmin}
-                          className={`text-white p-2 rounded-md ${
+                          className={`text-white p-1.5 rounded-md ${
                             userItem.isAdmin 
                               ? 'bg-gray-300 cursor-not-allowed' 
                               : 'bg-instagram-red hover:bg-instagram-darkpink'
@@ -182,9 +182,9 @@ export default function AdminPage() {
                           title={userItem.isAdmin ? "관리자는 삭제할 수 없습니다" : "사용자 삭제"}
                         >
                           {deleteLoading === userItem.id ? (
-                            <div className="w-5 h-5 border-2 border-white rounded-full border-t-transparent animate-spin"></div>
+                            <div className="w-4 h-4 border-2 border-white rounded-full border-t-transparent animate-spin"></div>
                           ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
                             </svg>
                           )}
