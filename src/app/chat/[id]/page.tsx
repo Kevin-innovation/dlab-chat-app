@@ -264,9 +264,6 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
               </div>
               <div className="flex-1">
                 <p className="text-sm text-gray-800 whitespace-pre-wrap">{chatRoom?.pinnedNotice?.content}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {chatRoom?.pinnedNotice?.creatorNickname}님이 {new Date(chatRoom?.pinnedNotice?.createdAt || new Date()).toLocaleDateString()}에 작성
-                </p>
               </div>
               {isAdmin && (
                 <button
