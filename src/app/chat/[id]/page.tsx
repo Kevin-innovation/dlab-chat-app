@@ -41,7 +41,7 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [deletingMessage, setDeletingMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [showNoticeEditor, setShowNoticeEditor] = useState(false);
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [noticeContent, setNoticeContent] = useState('');
   const [savingNotice, setSavingNotice] = useState(false);
 
@@ -205,7 +205,7 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
         }
       }
       
-      setShowNoticeEditor(false);
+      setShowNoticeModal(false);
     } catch (error) {
       console.error('공지사항 저장 실패:', error);
       setError('공지사항을 저장하는 중 오류가 발생했습니다.');
@@ -253,79 +253,33 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
       </header>
 
       {/* 공지사항 영역 */}
-      {(chatRoom?.pinnedNotice || isAdmin) && (
+      {chatRoom?.pinnedNotice && (
         <div className="bg-gray-50 border-b border-gray-200">
           <div className="max-w-5xl mx-auto py-2 px-4">
-            {showNoticeEditor ? (
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-medium text-gray-700">공지사항 작성</h3>
-                  <button 
-                    onClick={() => setShowNoticeEditor(false)}
-                    className="text-gray-400 hover:text-gray-500"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-                <textarea
-                  value={noticeContent}
-                  onChange={(e) => setNoticeContent(e.target.value)}
-                  placeholder="공지사항 내용을 입력하세요..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue text-sm"
-                  rows={3}
-                />
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setShowNoticeEditor(false)}
-                    className="px-3 py-1 border border-gray-300 rounded text-gray-600 text-sm hover:bg-gray-50"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={handleSaveNotice}
-                    disabled={savingNotice}
-                    className="px-3 py-1 bg-instagram-blue text-white rounded text-sm hover:bg-instagram-purple"
-                  >
-                    {savingNotice ? '저장 중...' : '저장'}
-                  </button>
-                </div>
+            <div className="flex items-start">
+              <div className="text-instagram-red mr-2 mt-0.5">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
               </div>
-            ) : (
-              <div className="flex items-start justify-between">
-                <div className="flex items-start">
-                  <div className="text-instagram-red mr-2 mt-0.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    {chatRoom?.pinnedNotice ? (
-                      <div>
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{chatRoom.pinnedNotice.content}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {chatRoom.pinnedNotice.creatorNickname}님이 {new Date(chatRoom.pinnedNotice.createdAt).toLocaleDateString()}에 작성
-                        </p>
-                      </div>
-                    ) : isAdmin && (
-                      <p className="text-sm text-gray-500 italic">공지사항이 없습니다. 공지사항을 작성해보세요.</p>
-                    )}
-                  </div>
-                </div>
-                {isAdmin && (
-                  <button
-                    onClick={() => {
-                      setNoticeContent(chatRoom?.pinnedNotice?.content || '');
-                      setShowNoticeEditor(true);
-                    }}
-                    className="text-instagram-blue hover:text-instagram-purple text-sm ml-2"
-                  >
-                    {chatRoom?.pinnedNotice ? '수정' : '작성'}
-                  </button>
-                )}
+              <div className="flex-1">
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{chatRoom?.pinnedNotice?.content}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {chatRoom?.pinnedNotice?.creatorNickname}님이 {new Date(chatRoom?.pinnedNotice?.createdAt || new Date()).toLocaleDateString()}에 작성
+                </p>
               </div>
-            )}
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    setNoticeContent(chatRoom?.pinnedNotice?.content || '');
+                    setShowNoticeModal(true);
+                  }}
+                  className="text-instagram-blue hover:text-instagram-purple text-sm ml-2"
+                >
+                  수정
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -422,10 +376,72 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
             >
               전송
             </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  setNoticeContent(chatRoom?.pinnedNotice?.content || '');
+                  setShowNoticeModal(true);
+                }}
+                className="bg-instagram-red text-white px-3 py-2 rounded-md hover:bg-instagram-darkpink transition-colors"
+                title="공지사항 작성"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </button>
+            )}
           </form>
           {error && <p className="mt-2 text-sm text-instagram-red">{error}</p>}
         </div>
       </div>
+
+      {/* 공지사항 작성 모달 */}
+      {showNoticeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">공지사항 {chatRoom?.pinnedNotice ? '수정' : '작성'}</h3>
+              <button
+                onClick={() => setShowNoticeModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            <textarea
+              value={noticeContent}
+              onChange={(e) => setNoticeContent(e.target.value)}
+              placeholder="공지사항 내용을 입력하세요..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue text-sm"
+              rows={5}
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setShowNoticeModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  handleSaveNotice();
+                  setShowNoticeModal(false);
+                }}
+                disabled={savingNotice}
+                className="px-4 py-2 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple"
+              >
+                {savingNotice ? '저장 중...' : '저장'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-4">
+              * 공지사항을 삭제하려면 내용을 비우고 저장하세요.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
