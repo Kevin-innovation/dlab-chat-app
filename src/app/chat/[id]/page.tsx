@@ -229,12 +229,17 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
               isSystem: true
             }
           ]);
+          
+          // 3초 후 채팅방 목록으로 자동 이동
+          setTimeout(() => {
+            router.push('/chat');
+          }, 3000);
         }
       }
     });
     
     return () => unsubscribe();
-  }, [params.id, user, isAuthorized]);
+  }, [params.id, user, isAuthorized, router]);
 
   // 메시지 전송 후 스크롤 맨 아래로 이동
   useEffect(() => {
@@ -246,13 +251,40 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
     
     if (!newMessage.trim() || !user) return;
     
-    // 참여자 목록에 없으면 메시지 전송 불가
-    if (!isParticipant()) {
-      setError('채팅방 참여자만 메시지를 보낼 수 있습니다.');
-      return;
-    }
-    
     try {
+      setError('');
+      
+      // 메시지 전송 전 다시 한번 채팅방 정보를 가져와서 참여자 검증
+      const chatRoomRef = doc(db, 'chatRooms', params.id);
+      const chatRoomSnapshot = await getDoc(chatRoomRef);
+      
+      if (!chatRoomSnapshot.exists()) {
+        setError('채팅방을 찾을 수 없습니다.');
+        return;
+      }
+      
+      const chatRoomData = chatRoomSnapshot.data();
+      const participants = chatRoomData.participants || {};
+      
+      // 현재 사용자가 참여자 목록에 없으면 메시지 전송 차단
+      if (!participants[user.id]) {
+        setError('채팅방 참여자만 메시지를 보낼 수 있습니다.');
+        // 참여자가 아님을 UI에 반영
+        setChatRoom(prev => {
+          if (!prev) return null;
+          
+          const updatedParticipants = { ...prev.participants };
+          delete updatedParticipants[user.id];
+          
+          return {
+            ...prev,
+            participants: updatedParticipants
+          };
+        });
+        return;
+      }
+      
+      // 참여자 검증 통과 후 메시지 전송
       const messagesRef = collection(db, 'chatRooms', params.id, 'messages');
       await addDoc(messagesRef, {
         text: newMessage,
@@ -261,13 +293,8 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
         timestamp: serverTimestamp(),
         isSystem: false
       });
-
-      // 채팅방의 마지막 메시지 업데이트
-      const chatRoomRef = doc(db, 'chatRooms', params.id);
-      await getDoc(chatRoomRef);
       
       setNewMessage('');
-      setError('');
     } catch (error) {
       console.error('메시지 전송 실패:', error);
       setError('메시지 전송 중 오류가 발생했습니다.');
