@@ -275,7 +275,7 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
             />
             <button
               type="submit"
-              className="bg-instagram-blue text-white px-4 py-2 rounded-md hover:bg-instagram-purple transition-colors"
+              className="bg-instagram-blue text-white px-3 py-2 rounded-md hover:bg-instagram-purple transition-colors min-w-[80px]"
               disabled={!newMessage.trim()}
             >
               전송

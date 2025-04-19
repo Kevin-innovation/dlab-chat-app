@@ -121,13 +121,13 @@ export default function NewChatRoom() {
           <div className="flex justify-between gap-4 pt-2">
             <Link
               href="/chat"
-              className="w-full py-2 px-4 border border-instagram-purple text-instagram-darkpurple rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-instagram-blue text-center"
+              className="w-full py-2 px-3 border border-instagram-purple text-instagram-darkpurple rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-instagram-blue text-center min-w-[100px]"
             >
               취소
             </Link>
             <button
               type="submit"
-              className="w-full py-2 px-4 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple focus:outline-none focus:ring-2 focus:ring-instagram-blue"
+              className="w-full py-2 px-3 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple focus:outline-none focus:ring-2 focus:ring-instagram-blue min-w-[100px]"
             >
               생성하기
             </button>

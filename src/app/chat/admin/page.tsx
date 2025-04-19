@@ -119,7 +119,7 @@ export default function AdminPage() {
           </div>
           <Link
             href="/chat"
-            className="bg-instagram-blue text-white px-4 py-2 rounded-md hover:bg-instagram-purple transition-colors"
+            className="bg-instagram-blue text-white px-3 py-2 rounded-md hover:bg-instagram-purple transition-colors min-w-[100px] text-center"
           >
             채팅방 목록
           </Link>
