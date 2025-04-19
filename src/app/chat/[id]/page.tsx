@@ -569,26 +569,29 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
               // 시스템 메시지인 경우
               if (message.isSystem) {
                 return (
-                  <div key={message.id} className="flex justify-center items-center">
-                    <div className="bg-gray-200 text-gray-800 rounded-md px-4 py-2 text-xs text-center max-w-md">
-                      {message.text}
+                  <div key={message.id} className="flex justify-center gap-2">
+                    <div className="flex items-center max-w-md">
+                      <div className="bg-gray-200 text-gray-800 rounded-md px-4 py-2 text-xs text-center">
+                        {message.text}
+                      </div>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDeleteMessage(message.id)}
+                          disabled={deletingMessage === message.id}
+                          className="text-white bg-instagram-red hover:bg-instagram-darkpink p-1.5 rounded-full ml-1 flex items-center justify-center"
+                          title="메시지 삭제"
+                          style={{ minWidth: '24px', minHeight: '24px' }}
+                        >
+                          {deletingMessage === message.id ? (
+                            <div className="w-3 h-3 border-2 border-white rounded-full border-t-transparent animate-spin"></div>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
                     </div>
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleDeleteMessage(message.id)}
-                        disabled={deletingMessage === message.id}
-                        className="text-instagram-red hover:text-instagram-darkpink ml-1 self-center"
-                        title="메시지 삭제"
-                      >
-                        {deletingMessage === message.id ? (
-                          <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </button>
-                    )}
                   </div>
                 );
               }
