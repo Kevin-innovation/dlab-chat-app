@@ -6,7 +6,7 @@
 브라우저에서 [chat-app-zeta-plum.vercel.app](https://chat-app-zeta-plum.vercel.app)으로 접속
 
 ## 단축 주소
-(https://lrl.kr/cWUxp)
+[lrl.kr/cWUxp](https://lrl.kr/cWUxp)
 
 ## 공지사항
 - 닉네임 생성시 학생 본인 이름을 꼭 입력해 주세요
