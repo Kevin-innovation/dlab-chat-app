@@ -6,5 +6,13 @@
   "regions": ["icn1"],
   "github": {
     "silent": true
+  },
+  "env": {
+    "NEXT_PUBLIC_FIREBASE_API_KEY": "AIzaSyCFsCfckFur_CWLEtNs3AKwG14wUWvl5r8",
+    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": "chat-app-67d91.firebaseapp.com",
+    "NEXT_PUBLIC_FIREBASE_PROJECT_ID": "chat-app-67d91",
+    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "chat-app-67d91.firebasestorage.app",
+    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "651166264761",
+    "NEXT_PUBLIC_FIREBASE_APP_ID": "1:651166264761:web:dcbff69b0318903d5d5a68"
   }
 } 
