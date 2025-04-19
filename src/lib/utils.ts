@@ -9,6 +9,13 @@ export const formatDate = (date: Date): string => {
   }).format(date);
 };
 
+// 사용자 타입 정의
+interface User {
+  id: string;
+  nickname: string;
+  isAdmin?: boolean;
+}
+
 // 사용자 ID 생성 함수 (UUID v4 유사)
 export const generateUserId = (): string => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -19,7 +26,7 @@ export const generateUserId = (): string => {
 };
 
 // 로컬 스토리지에서 사용자 정보 가져오기
-export const getUserFromStorage = (): { id: string; nickname: string } | null => {
+export const getUserFromStorage = (): User | null => {
   if (typeof window === 'undefined') {
     return null;
   }
@@ -29,7 +36,7 @@ export const getUserFromStorage = (): { id: string; nickname: string } | null =>
 };
 
 // 로컬 스토리지에 사용자 정보 저장
-export const saveUserToStorage = (user: { id: string; nickname: string }): void => {
+export const saveUserToStorage = (user: User): void => {
   if (typeof window === 'undefined') {
     return;
   }
