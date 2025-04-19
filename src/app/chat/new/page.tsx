@@ -55,6 +55,8 @@ export default function NewChatRoom() {
         password: password || null,
         createdAt: new Date(),
         createdBy: user.id,
+        creatorNickname: user.nickname,
+        pinnedNotice: null,
       });
       router.push('/chat');
     } catch (error) {

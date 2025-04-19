@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, addDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp, updateDoc, deleteField } from 'firebase/firestore';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatDate } from '@/lib/utils';
@@ -23,6 +23,12 @@ interface ChatRoomData {
   createdAt: Date;
   createdBy: string;
   creatorNickname: string;
+  pinnedNotice?: {
+    content: string;
+    createdAt: Date;
+    createdBy: string;
+    creatorNickname: string;
+  }
 }
 
 export default function ChatRoom({ params }: { params: { id: string } }) {
@@ -35,6 +41,9 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [deletingMessage, setDeletingMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showNoticeEditor, setShowNoticeEditor] = useState(false);
+  const [noticeContent, setNoticeContent] = useState('');
+  const [savingNotice, setSavingNotice] = useState(false);
 
   // 사용자가 로그인하지 않은 경우 홈으로 리다이렉트
   useEffect(() => {
@@ -57,7 +66,8 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
             name: data.name,
             createdAt: data.createdAt?.toDate() || new Date(),
             createdBy: data.createdBy,
-            creatorNickname: data.creatorNickname
+            creatorNickname: data.creatorNickname,
+            pinnedNotice: data.pinnedNotice
           });
         } else {
           setError('채팅방을 찾을 수 없습니다.');
@@ -150,6 +160,60 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
     }
   };
 
+  // 공지사항 설정 함수
+  const handleSaveNotice = async () => {
+    if (!user || !isAdmin) return;
+    
+    try {
+      setSavingNotice(true);
+      const chatRoomRef = doc(db, 'chatRooms', params.id);
+      
+      // 공지사항 내용이 있으면 저장, 없으면 제거
+      if (noticeContent.trim()) {
+        await updateDoc(chatRoomRef, {
+          pinnedNotice: {
+            content: noticeContent.trim(),
+            createdAt: serverTimestamp(),
+            createdBy: user.id,
+            creatorNickname: user.nickname
+          }
+        });
+        
+        // 로컬 상태 업데이트
+        if (chatRoom) {
+          setChatRoom({
+            ...chatRoom,
+            pinnedNotice: {
+              content: noticeContent.trim(),
+              createdAt: new Date(),
+              createdBy: user.id,
+              creatorNickname: user.nickname
+            }
+          });
+        }
+      } else {
+        // 공지사항 내용이 비어있으면 삭제
+        await updateDoc(chatRoomRef, {
+          pinnedNotice: deleteField()
+        });
+        
+        // 로컬 상태 업데이트
+        if (chatRoom) {
+          const updatedChatRoom = { ...chatRoom };
+          delete updatedChatRoom.pinnedNotice;
+          setChatRoom(updatedChatRoom);
+        }
+      }
+      
+      setShowNoticeEditor(false);
+    } catch (error) {
+      console.error('공지사항 저장 실패:', error);
+      setError('공지사항을 저장하는 중 오류가 발생했습니다.');
+    } finally {
+      setSavingNotice(false);
+    }
+  };
+
   if (isLoading || loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -187,6 +251,84 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
           </div>
         </div>
       </header>
+
+      {/* 공지사항 영역 */}
+      {(chatRoom?.pinnedNotice || isAdmin) && (
+        <div className="bg-gray-50 border-b border-gray-200">
+          <div className="max-w-5xl mx-auto py-2 px-4">
+            {showNoticeEditor ? (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-medium text-gray-700">공지사항 작성</h3>
+                  <button 
+                    onClick={() => setShowNoticeEditor(false)}
+                    className="text-gray-400 hover:text-gray-500"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+                <textarea
+                  value={noticeContent}
+                  onChange={(e) => setNoticeContent(e.target.value)}
+                  placeholder="공지사항 내용을 입력하세요..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue text-sm"
+                  rows={3}
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowNoticeEditor(false)}
+                    className="px-3 py-1 border border-gray-300 rounded text-gray-600 text-sm hover:bg-gray-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleSaveNotice}
+                    disabled={savingNotice}
+                    className="px-3 py-1 bg-instagram-blue text-white rounded text-sm hover:bg-instagram-purple"
+                  >
+                    {savingNotice ? '저장 중...' : '저장'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between">
+                <div className="flex items-start">
+                  <div className="text-instagram-red mr-2 mt-0.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    {chatRoom?.pinnedNotice ? (
+                      <div>
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{chatRoom.pinnedNotice.content}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {chatRoom.pinnedNotice.creatorNickname}님이 {new Date(chatRoom.pinnedNotice.createdAt).toLocaleDateString()}에 작성
+                        </p>
+                      </div>
+                    ) : isAdmin && (
+                      <p className="text-sm text-gray-500 italic">공지사항이 없습니다. 공지사항을 작성해보세요.</p>
+                    )}
+                  </div>
+                </div>
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setNoticeContent(chatRoom?.pinnedNotice?.content || '');
+                      setShowNoticeEditor(true);
+                    }}
+                    className="text-instagram-blue hover:text-instagram-purple text-sm ml-2"
+                  >
+                    {chatRoom?.pinnedNotice ? '수정' : '작성'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 메시지 영역 */}
       <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
