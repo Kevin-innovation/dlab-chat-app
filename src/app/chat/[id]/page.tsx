@@ -15,6 +15,7 @@ interface Message {
   senderId: string;
   senderNickname: string;
   timestamp: Date;
+  isSystem?: boolean;
 }
 
 interface ChatRoomData {
@@ -173,13 +174,63 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
           text: data.text,
           senderId: data.senderId,
           senderNickname: data.senderNickname,
-          timestamp: data.timestamp?.toDate() || new Date()
+          timestamp: data.timestamp?.toDate() || new Date(),
+          isSystem: data.isSystem || false
         });
       });
       
       setMessages(fetchedMessages);
     }, (error) => {
       console.error('메시지를 불러오는 중 오류가 발생했습니다:', error);
+    });
+    
+    return () => unsubscribe();
+  }, [params.id, user, isAuthorized]);
+
+  // 참여자 검증 함수
+  const isParticipant = () => {
+    if (!chatRoom || !user) return false;
+    return chatRoom.participants && chatRoom.participants[user.id] !== undefined;
+  };
+
+  // 실시간으로 참여자 상태 확인
+  useEffect(() => {
+    if (!user || !params.id || !isAuthorized) return;
+
+    // 채팅방 문서의 실시간 변경 감지
+    const chatRoomRef = doc(db, 'chatRooms', params.id);
+    const unsubscribe = onSnapshot(chatRoomRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data();
+        const updatedChatRoom = {
+          id: docSnapshot.id,
+          name: data.name,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          createdBy: data.createdBy,
+          creatorNickname: data.creatorNickname,
+          password: data.password || undefined,
+          pinnedNotice: data.pinnedNotice,
+          participants: data.participants || {}
+        };
+        
+        setChatRoom(updatedChatRoom);
+        
+        // 사용자가 참여자 목록에서 제거되었는지 확인
+        if (user && !data.participants?.[user.id]) {
+          // 시스템 메시지 표시
+          setMessages(prev => [
+            ...prev, 
+            {
+              id: 'kicked-message',
+              text: '관리자에 의해 채팅방에서 퇴장되었습니다. 더 이상 메시지를 보낼 수 없습니다.',
+              senderId: 'system',
+              senderNickname: '시스템',
+              timestamp: new Date(),
+              isSystem: true
+            }
+          ]);
+        }
+      }
     });
     
     return () => unsubscribe();
@@ -195,13 +246,20 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
     
     if (!newMessage.trim() || !user) return;
     
+    // 참여자 목록에 없으면 메시지 전송 불가
+    if (!isParticipant()) {
+      setError('채팅방 참여자만 메시지를 보낼 수 있습니다.');
+      return;
+    }
+    
     try {
       const messagesRef = collection(db, 'chatRooms', params.id, 'messages');
       await addDoc(messagesRef, {
         text: newMessage,
         senderId: user.id,
         senderNickname: user.nickname,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        isSystem: false
       });
 
       // 채팅방의 마지막 메시지 업데이트
@@ -209,6 +267,7 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
       await getDoc(chatRoomRef);
       
       setNewMessage('');
+      setError('');
     } catch (error) {
       console.error('메시지 전송 실패:', error);
       setError('메시지 전송 중 오류가 발생했습니다.');
@@ -479,66 +538,80 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
               <p className="text-gray-500">아직 메시지가 없습니다. 첫 메시지를 보내보세요!</p>
             </div>
           ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.senderId === user.id ? 'justify-end' : 'justify-start'}`}
-              >
-                {isAdmin && (
-                  <button
-                    onClick={() => handleDeleteMessage(message.id)}
-                    disabled={deletingMessage === message.id}
-                    className="text-instagram-red hover:text-instagram-darkpink mr-1 self-center"
-                    title="메시지 삭제"
-                  >
-                    {deletingMessage === message.id ? (
-                      <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </button>
-                )}
-                <div
-                  className={`max-w-xs sm:max-w-md rounded-lg px-4 py-2 ${
-                    message.senderId === user.id
-                      ? 'bg-instagram-blue text-white rounded-br-none'
-                      : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100'
-                  }`}
-                >
-                  {message.senderId !== user.id && (
-                    <div className="font-medium text-sm text-gray-700 mb-1">
-                      {message.senderNickname}
+            messages.map((message) => {
+              // 시스템 메시지인 경우
+              if (message.isSystem) {
+                return (
+                  <div key={message.id} className="flex justify-center">
+                    <div className="bg-gray-200 text-gray-800 rounded-md px-4 py-2 text-xs text-center max-w-md">
+                      {message.text}
                     </div>
+                  </div>
+                );
+              }
+              
+              // 일반 메시지인 경우
+              return (
+                <div
+                  key={message.id}
+                  className={`flex ${message.senderId === user.id ? 'justify-end' : 'justify-start'}`}
+                >
+                  {isAdmin && message.senderId !== 'system' && message.senderId !== user.id && (
+                    <button
+                      onClick={() => handleDeleteMessage(message.id)}
+                      disabled={deletingMessage === message.id}
+                      className="text-instagram-red hover:text-instagram-darkpink mr-1 self-center"
+                      title="메시지 삭제"
+                    >
+                      {deletingMessage === message.id ? (
+                        <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
                   )}
-                  <p>{message.text}</p>
                   <div
-                    className={`text-xs mt-1 ${
-                      message.senderId === user.id ? 'text-blue-100' : 'text-gray-500'
+                    className={`max-w-xs sm:max-w-md rounded-lg px-4 py-2 ${
+                      message.senderId === user.id
+                        ? 'bg-instagram-blue text-white rounded-br-none'
+                        : 'bg-white text-gray-800 rounded-bl-none shadow-sm border border-gray-100'
                     }`}
                   >
-                    {formatDate(message.timestamp)}
-                  </div>
-                </div>
-                {isAdmin && message.senderId === user.id && (
-                  <button
-                    onClick={() => handleDeleteMessage(message.id)}
-                    disabled={deletingMessage === message.id}
-                    className="text-instagram-red hover:text-instagram-darkpink ml-1 self-center"
-                    title="메시지 삭제"
-                  >
-                    {deletingMessage === message.id ? (
-                      <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
+                    {message.senderId !== user.id && message.senderId !== 'system' && (
+                      <div className="font-medium text-sm text-gray-700 mb-1">
+                        {message.senderNickname}
+                      </div>
                     )}
-                  </button>
-                )}
-              </div>
-            ))
+                    <p>{message.text}</p>
+                    <div
+                      className={`text-xs mt-1 ${
+                        message.senderId === user.id ? 'text-blue-100' : 'text-gray-500'
+                      }`}
+                    >
+                      {formatDate(message.timestamp)}
+                    </div>
+                  </div>
+                  {isAdmin && message.senderId === user.id && (
+                    <button
+                      onClick={() => handleDeleteMessage(message.id)}
+                      disabled={deletingMessage === message.id}
+                      className="text-instagram-red hover:text-instagram-darkpink ml-1 self-center"
+                      title="메시지 삭제"
+                    >
+                      {deletingMessage === message.id ? (
+                        <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
+                </div>
+              );
+            })
           )}
           <div ref={messagesEndRef} />
         </div>
@@ -552,13 +625,17 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="메시지를 입력하세요..."
+              placeholder={isParticipant() ? "메시지를 입력하세요..." : "채팅방에 참여할 수 없습니다."}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue focus:border-transparent text-gray-800 bg-white"
+              disabled={!isParticipant()}
             />
             <button
               type="submit"
-              className="bg-instagram-blue text-white px-3 py-2 rounded-md hover:bg-instagram-purple transition-colors min-w-[80px]"
-              disabled={!newMessage.trim()}
+              className={`${isParticipant() 
+                ? 'bg-instagram-blue hover:bg-instagram-purple' 
+                : 'bg-gray-300 cursor-not-allowed'} 
+                text-white px-3 py-2 rounded-md transition-colors min-w-[80px]`}
+              disabled={!newMessage.trim() || !isParticipant()}
             >
               전송
             </button>
