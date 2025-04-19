@@ -4,15 +4,17 @@
 
 :root {
   --foreground-rgb: 38, 38, 38; /* Instagram text color */
-  --background-rgb: 250, 250, 250; /* Instagram light background */
+  --background-rgb: 255, 255, 255; /* Pure white background */
 }
 
+/* 다크 모드 설정 비활성화
 @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 245, 245, 245;
-    --background-rgb: 38, 38, 38; /* Instagram dark mode background */
+    --background-rgb: 38, 38, 38;
   }
 }
+*/
 
 body {
   color: rgb(var(--foreground-rgb));
