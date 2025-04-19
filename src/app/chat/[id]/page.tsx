@@ -40,7 +40,7 @@ interface ChatRoomData {
 
 export default function ChatRoom({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const { user, isLoading, isAdmin } = useUser();
+  const { user, isLoading, isAdmin, updateNickname } = useUser();
   const [chatRoom, setChatRoom] = useState<ChatRoomData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -69,6 +69,12 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
 
   // 참여자 목록 모달 관련 상태
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  
+  // 닉네임 변경 관련 상태
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [newNickname, setNewNickname] = useState('');
+  const [updatingNickname, setUpdatingNickname] = useState(false);
+  const [nicknameError, setNicknameError] = useState('');
 
   // 사용자가 로그인하지 않은 경우 홈으로 리다이렉트
   useEffect(() => {
@@ -491,6 +497,60 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
     return Object.keys(chatRoom.participants).length;
   };
 
+  // 닉네임 변경 함수
+  const handleUpdateNickname = async () => {
+    if (!user || !newNickname.trim()) return;
+    
+    if (newNickname.trim() === user.nickname) {
+      setShowNicknameModal(false);
+      return;
+    }
+    
+    try {
+      setUpdatingNickname(true);
+      setNicknameError('');
+      
+      // UserContext의 updateNickname 함수 호출
+      const success = await updateNickname(newNickname.trim());
+      
+      if (success) {
+        // 채팅방 참여자 정보 업데이트
+        const chatRoomRef = doc(db, 'chatRooms', params.id);
+        await updateDoc(chatRoomRef, {
+          [`participants.${user.id}.nickname`]: newNickname.trim()
+        });
+        
+        // 성공 메시지 추가
+        const messagesRef = collection(db, 'chatRooms', params.id, 'messages');
+        await addDoc(messagesRef, {
+          text: `${user.nickname}님이 닉네임을 ${newNickname.trim()}(으)로 변경했습니다.`,
+          senderId: 'system',
+          senderNickname: '시스템',
+          timestamp: serverTimestamp(),
+          isSystem: true
+        });
+        
+        // 모달 닫기
+        setShowNicknameModal(false);
+      } else {
+        setNicknameError('닉네임 변경에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('닉네임 변경 실패:', error);
+      setNicknameError('닉네임 변경 중 오류가 발생했습니다.');
+    } finally {
+      setUpdatingNickname(false);
+    }
+  };
+
+  // 모달 열 때 현재 닉네임으로 초기화
+  useEffect(() => {
+    if (showNicknameModal && user) {
+      setNewNickname(user.nickname);
+      setNicknameError('');
+    }
+  }, [showNicknameModal, user]);
+
   if (isLoading || loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -822,22 +882,38 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
                             <span className="ml-2 text-xs text-white bg-instagram-blue px-2 py-0.5 rounded-full">방장</span>
                           )}
                         </div>
-                        {isAdmin && userId !== user?.id && userId !== chatRoom.createdBy && (
-                          <button
-                            onClick={() => handleRemoveParticipant(userId)}
-                            disabled={removingUser === userId}
-                            className="text-instagram-red hover:text-instagram-darkpink"
-                            title="참여자 내보내기"
-                          >
-                            {removingUser === userId ? (
-                              <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
-                            ) : (
+                        <div className="flex gap-2">
+                          {userId === user?.id && (
+                            <button
+                              onClick={() => setShowNicknameModal(true)}
+                              className="text-instagram-blue hover:text-instagram-purple"
+                              title="닉네임 변경"
+                            >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                               </svg>
-                            )}
-                          </button>
-                        )}
+                            </button>
+                          )}
+                          {isAdmin && userId !== user?.id && userId !== chatRoom.createdBy && (
+                            <button
+                              onClick={() => {
+                                handleRemoveParticipant(userId);
+                                setShowParticipantsModal(false);
+                              }}
+                              disabled={removingUser === userId}
+                              className="text-instagram-red hover:text-instagram-darkpink"
+                              title="참여자 내보내기"
+                            >
+                              {removingUser === userId ? (
+                                <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -982,25 +1058,38 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
                           <span className="ml-2 text-xs text-gray-500">(나)</span>
                         )}
                       </div>
-                      {isAdmin && userId !== user?.id && userId !== chatRoom.createdBy && (
-                        <button
-                          onClick={() => {
-                            handleRemoveParticipant(userId);
-                            setShowParticipantsModal(false);
-                          }}
-                          disabled={removingUser === userId}
-                          className="text-instagram-red hover:text-instagram-darkpink"
-                          title="참여자 내보내기"
-                        >
-                          {removingUser === userId ? (
-                            <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
-                          ) : (
+                      <div className="flex gap-2">
+                        {userId === user?.id && (
+                          <button
+                            onClick={() => setShowNicknameModal(true)}
+                            className="text-instagram-blue hover:text-instagram-purple"
+                            title="닉네임 변경"
+                          >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                             </svg>
-                          )}
-                        </button>
-                      )}
+                          </button>
+                        )}
+                        {isAdmin && userId !== user?.id && userId !== chatRoom.createdBy && (
+                          <button
+                            onClick={() => {
+                              handleRemoveParticipant(userId);
+                              setShowParticipantsModal(false);
+                            }}
+                            disabled={removingUser === userId}
+                            className="text-instagram-red hover:text-instagram-darkpink"
+                            title="참여자 내보내기"
+                          >
+                            {removingUser === userId ? (
+                              <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1014,6 +1103,57 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
                 className="px-4 py-2 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple"
               >
                 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 닉네임 변경 모달 */}
+      {showNicknameModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">닉네임 변경</h3>
+              <button
+                onClick={() => setShowNicknameModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            
+            <p className="mb-4 text-sm text-gray-700">
+              변경할 닉네임을 입력하세요.
+            </p>
+            
+            <div className="mb-4">
+              <input
+                type="text"
+                value={newNickname}
+                onChange={(e) => setNewNickname(e.target.value)}
+                placeholder="새 닉네임을 입력하세요"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue"
+                onKeyDown={(e) => e.key === 'Enter' && handleUpdateNickname()}
+              />
+              {nicknameError && <p className="text-instagram-red text-sm mt-1">{nicknameError}</p>}
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowNicknameModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleUpdateNickname}
+                disabled={updatingNickname || !newNickname.trim() || newNickname.trim() === user?.nickname}
+                className="px-4 py-2 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple"
+              >
+                {updatingNickname ? '변경 중...' : '변경'}
               </button>
             </div>
           </div>

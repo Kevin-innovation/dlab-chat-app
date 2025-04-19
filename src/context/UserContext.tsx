@@ -20,6 +20,7 @@ interface UserContextType {
   checkAdminPassword: (password: string) => boolean;
   getUsers: () => Promise<User[]>;
   deleteUser: (userId: string) => Promise<boolean>;
+  updateNickname: (newNickname: string) => Promise<boolean>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -123,6 +124,34 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // 닉네임 변경 함수
+  const updateNickname = async (newNickname: string): Promise<boolean> => {
+    if (!user) return false;
+    
+    try {
+      // Firebase의 사용자 문서 업데이트
+      await setDoc(doc(db, 'users', user.id), {
+        id: user.id,
+        nickname: newNickname,
+        isAdmin: user.isAdmin || false,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      
+      // 상태 업데이트
+      const updatedUser = {
+        ...user,
+        nickname: newNickname
+      };
+      setUser(updatedUser);
+      saveUserToStorage(updatedUser);
+      
+      return true;
+    } catch (error) {
+      console.error('닉네임 변경 실패:', error);
+      return false;
+    }
+  };
+
   return (
     <UserContext.Provider value={{ 
       user, 
@@ -133,7 +162,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       isAdmin, 
       checkAdminPassword,
       getUsers,
-      deleteUser
+      deleteUser,
+      updateNickname
     }}>
       {children}
     </UserContext.Provider>
