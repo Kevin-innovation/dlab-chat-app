@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
+import Image from 'next/image';
 
 export default function Home() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function Home() {
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-sm border border-gray-100">
         <div className="flex items-center flex-col">
           <div className="flex items-center justify-center mb-2">
-            <img src="/kevin.png" alt="Kevin" className="w-12 h-12 mr-3" />
+            <Image src="/kevin.png" width={48} height={48} alt="Kevin" className="mr-3" />
             <h1 className="text-4xl font-extrabold text-gray-900">실시간 채팅</h1>
           </div>
           <p className="text-gray-600">닉네임을 입력하고 채팅에 참여하세요</p>

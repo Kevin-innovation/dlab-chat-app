@@ -6,6 +6,7 @@ import { useUser } from '@/context/UserContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, addDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
+import Image from 'next/image';
 import { formatDate } from '@/lib/utils';
 
 interface Message {
@@ -174,6 +175,7 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
                 <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
               </svg>
             </Link>
+            <Image src="/kevin.png" width={28} height={28} alt="Kevin" className="mr-2" />
             <h1 className="text-xl font-bold text-gray-800">{chatRoom?.name}</h1>
             {isAdmin && (
               <span className="text-xs text-white bg-instagram-red px-2 py-1 rounded-full">관리자</span>
