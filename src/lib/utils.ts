@@ -14,6 +14,7 @@ interface User {
   id: string;
   nickname: string;
   isAdmin?: boolean;
+  createdAt?: Date;
 }
 
 // 사용자 ID 생성 함수 (UUID v4 유사)

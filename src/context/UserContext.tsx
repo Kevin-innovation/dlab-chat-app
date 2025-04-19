@@ -1,10 +1,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getUserFromStorage, saveUserToStorage, removeUserFromStorage, generateUserId } from '@/lib/utils';
+import { db } from '@/lib/firebase';
+import { collection, doc, setDoc, deleteDoc, getDocs, serverTimestamp, query, orderBy } from 'firebase/firestore';
 
 interface User {
   id: string;
   nickname: string;
   isAdmin?: boolean;
+  createdAt?: Date;
 }
 
 interface UserContextType {
@@ -15,6 +18,8 @@ interface UserContextType {
   isLoading: boolean;
   isAdmin: boolean;
   checkAdminPassword: (password: string) => boolean;
+  getUsers: () => Promise<User[]>;
+  deleteUser: (userId: string) => Promise<boolean>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -34,13 +39,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = (nickname: string) => {
+  const login = async (nickname: string) => {
+    const userId = generateUserId();
     const newUser = {
-      id: generateUserId(),
+      id: userId,
       nickname
     };
-    setUser(newUser);
-    saveUserToStorage(newUser);
+    
+    try {
+      // Firebase에 사용자 정보 저장
+      await setDoc(doc(db, 'users', userId), {
+        ...newUser,
+        createdAt: serverTimestamp()
+      });
+      
+      setUser(newUser);
+      saveUserToStorage(newUser);
+    } catch (error) {
+      console.error('사용자 정보 저장 실패:', error);
+    }
   };
 
   const logout = () => {
@@ -61,9 +78,63 @@ export function UserProvider({ children }: { children: ReactNode }) {
     
     return isCorrectPassword;
   };
+  
+  // 모든 사용자 목록 가져오기 (관리자 전용)
+  const getUsers = async (): Promise<User[]> => {
+    if (!isAdmin) {
+      return [];
+    }
+    
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const users: User[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        users.push({
+          id: doc.id,
+          nickname: data.nickname,
+          isAdmin: data.isAdmin || false,
+          createdAt: data.createdAt?.toDate()
+        });
+      });
+      
+      return users;
+    } catch (error) {
+      console.error('사용자 목록 조회 실패:', error);
+      return [];
+    }
+  };
+  
+  // 사용자 삭제 (관리자 전용)
+  const deleteUser = async (userId: string): Promise<boolean> => {
+    if (!isAdmin) {
+      return false;
+    }
+    
+    try {
+      await deleteDoc(doc(db, 'users', userId));
+      return true;
+    } catch (error) {
+      console.error('사용자 삭제 실패:', error);
+      return false;
+    }
+  };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, logout, isLoading, isAdmin, checkAdminPassword }}>
+    <UserContext.Provider value={{ 
+      user, 
+      setUser, 
+      login, 
+      logout, 
+      isLoading, 
+      isAdmin, 
+      checkAdminPassword,
+      getUsers,
+      deleteUser
+    }}>
       {children}
     </UserContext.Provider>
   );
