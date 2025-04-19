@@ -66,6 +66,7 @@ export default function NewChatRoom() {
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         <div className="flex items-center mb-6">
+          <img src="/kevin.png" alt="Kevin" className="w-8 h-8 mr-3" />
           <h1 className="text-2xl font-bold text-gray-800">새 채팅방 생성</h1>
           <div className="h-1 w-16 instagram-gradient rounded-full ml-3"></div>
         </div>

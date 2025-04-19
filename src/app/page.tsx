@@ -41,9 +41,11 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50">
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-sm border border-gray-100">
-        <div className="text-center">
-          <div className="instagram-gradient h-12 w-12 rounded-full mx-auto mb-4"></div>
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-2">실시간 채팅</h1>
+        <div className="flex items-center flex-col">
+          <div className="flex items-center justify-center mb-2">
+            <img src="/kevin.png" alt="Kevin" className="w-12 h-12 mr-3" />
+            <h1 className="text-4xl font-extrabold text-gray-900">실시간 채팅</h1>
+          </div>
           <p className="text-gray-600">닉네임을 입력하고 채팅에 참여하세요</p>
           <p className="text-instagram-red font-medium mt-2">학생 본인 이름을 꼭 입력해 주세요</p>
         </div>
