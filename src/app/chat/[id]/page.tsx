@@ -23,8 +23,17 @@ interface ChatRoomData {
   createdAt: Date;
   createdBy: string;
   creatorNickname: string;
+  password?: string;
   pinnedNotice?: {
     content: string;
+  };
+  participants?: {
+    [userId: string]: {
+      id: string;
+      nickname: string;
+      joinedAt: Date;
+      isAdmin?: boolean;
+    }
   }
 }
 
@@ -41,6 +50,21 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [noticeContent, setNoticeContent] = useState('');
   const [savingNotice, setSavingNotice] = useState(false);
+  
+  // 채팅방 관리 관련 상태
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [manageTab, setManageTab] = useState<'participants' | 'settings'>('participants');
+  const [roomNameEdit, setRoomNameEdit] = useState('');
+  const [roomPasswordEdit, setRoomPasswordEdit] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [removingUser, setRemovingUser] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState('');
+  
+  // 비밀번호 확인 관련 상태
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [roomPassword, setRoomPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   // 사용자가 로그인하지 않은 경우 홈으로 리다이렉트
   useEffect(() => {
@@ -58,14 +82,36 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
         
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setChatRoom({
+          const roomData = {
             id: docSnap.id,
             name: data.name,
             createdAt: data.createdAt?.toDate() || new Date(),
             createdBy: data.createdBy,
             creatorNickname: data.creatorNickname,
-            pinnedNotice: data.pinnedNotice
-          });
+            password: data.password || undefined,
+            pinnedNotice: data.pinnedNotice,
+            participants: data.participants || {}
+          };
+          
+          setChatRoom(roomData);
+          
+          // 비밀번호가 있는 방인 경우 비밀번호 확인 필요
+          if (data.password && !isAdmin) {
+            setShowPasswordModal(true);
+          } else {
+            setIsAuthorized(true);
+            // 채팅방에 현재 사용자가 참여자로 등록되어 있지 않으면 추가
+            if (user && (!data.participants || !data.participants[user.id])) {
+              await updateDoc(docRef, {
+                [`participants.${user.id}`]: {
+                  id: user.id,
+                  nickname: user.nickname,
+                  joinedAt: serverTimestamp(),
+                  isAdmin: user.isAdmin || false
+                }
+              });
+            }
+          }
         } else {
           setError('채팅방을 찾을 수 없습니다.');
           router.push('/chat');
@@ -81,11 +127,37 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
     if (user) {
       fetchChatRoom();
     }
-  }, [params.id, user, router]);
+  }, [params.id, user, router, isAdmin]);
 
-  // 메시지 불러오기 및 실시간 수신
+  // 비밀번호 확인 처리
+  const handleCheckPassword = async () => {
+    if (!chatRoom) return;
+    
+    if (roomPassword === chatRoom.password) {
+      setIsAuthorized(true);
+      setShowPasswordModal(false);
+      setPasswordError('');
+      
+      // 참여자 목록에 추가
+      if (user) {
+        const chatRoomRef = doc(db, 'chatRooms', params.id);
+        await updateDoc(chatRoomRef, {
+          [`participants.${user.id}`]: {
+            id: user.id,
+            nickname: user.nickname,
+            joinedAt: serverTimestamp(),
+            isAdmin: user.isAdmin || false
+          }
+        });
+      }
+    } else {
+      setPasswordError('비밀번호가 올바르지 않습니다.');
+    }
+  };
+
+  // 메시지 불러오기 및 실시간 수신 - 인증된 사용자만
   useEffect(() => {
-    if (!user || !params.id) return;
+    if (!user || !params.id || !isAuthorized) return;
 
     const messagesRef = collection(db, 'chatRooms', params.id, 'messages');
     const q = query(messagesRef, orderBy('timestamp', 'asc'));
@@ -109,7 +181,7 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
     });
     
     return () => unsubscribe();
-  }, [params.id, user]);
+  }, [params.id, user, isAuthorized]);
 
   // 메시지 전송 후 스크롤 맨 아래로 이동
   useEffect(() => {
@@ -205,6 +277,120 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
     }
   };
 
+  // 참여자 제거 함수
+  const handleRemoveParticipant = async (participantId: string) => {
+    if (!isAdmin || !chatRoom) return;
+    
+    try {
+      setRemovingUser(participantId);
+      const chatRoomRef = doc(db, 'chatRooms', params.id);
+      
+      // 채팅방 생성자는 제거할 수 없음
+      if (participantId === chatRoom.createdBy) {
+        alert('채팅방 생성자는 제거할 수 없습니다.');
+        return;
+      }
+      
+      await updateDoc(chatRoomRef, {
+        [`participants.${participantId}`]: deleteField()
+      });
+      
+      // 로컬 상태 업데이트
+      if (chatRoom && chatRoom.participants) {
+        const updatedParticipants = { ...chatRoom.participants };
+        delete updatedParticipants[participantId];
+        
+        setChatRoom({
+          ...chatRoom,
+          participants: updatedParticipants
+        });
+      }
+      
+      // 시스템 메시지 추가
+      const removedParticipant = chatRoom.participants?.[participantId];
+      if (removedParticipant) {
+        const messagesRef = collection(db, 'chatRooms', params.id, 'messages');
+        await addDoc(messagesRef, {
+          text: `${removedParticipant.nickname}님이 관리자에 의해 퇴장되었습니다.`,
+          senderId: 'system',
+          senderNickname: '시스템',
+          timestamp: serverTimestamp(),
+          isSystem: true
+        });
+      }
+      
+    } catch (error) {
+      console.error('참여자 제거 실패:', error);
+      alert('참여자를 제거하는 중 오류가 발생했습니다.');
+    } finally {
+      setRemovingUser(null);
+    }
+  };
+  
+  // 채팅방 설정 변경 함수
+  const handleSaveSettings = async () => {
+    if (!isAdmin || !chatRoom) return;
+    
+    try {
+      setSavingSettings(true);
+      setSettingsError('');
+      
+      if (!roomNameEdit.trim()) {
+        setSettingsError('채팅방 이름을 입력해주세요.');
+        return;
+      }
+      
+      const chatRoomRef = doc(db, 'chatRooms', params.id);
+      
+      const updateData: any = {
+        name: roomNameEdit.trim()
+      };
+      
+      // 비밀번호가 변경된 경우에만 업데이트
+      if (roomPasswordEdit !== (chatRoom.password || '')) {
+        if (roomPasswordEdit.trim()) {
+          updateData.password = roomPasswordEdit.trim();
+        } else {
+          updateData.password = null;
+        }
+      }
+      
+      await updateDoc(chatRoomRef, updateData);
+      
+      // 로컬 상태 업데이트
+      setChatRoom({
+        ...chatRoom,
+        name: roomNameEdit.trim(),
+        password: roomPasswordEdit.trim() || undefined
+      });
+      
+      // 시스템 메시지 추가
+      const messagesRef = collection(db, 'chatRooms', params.id, 'messages');
+      await addDoc(messagesRef, {
+        text: `채팅방 설정이 변경되었습니다.`,
+        senderId: 'system',
+        senderNickname: '시스템',
+        timestamp: serverTimestamp(),
+        isSystem: true
+      });
+      
+      setShowManageModal(false);
+    } catch (error) {
+      console.error('채팅방 설정 변경 실패:', error);
+      setSettingsError('채팅방 설정을 변경하는 중 오류가 발생했습니다.');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+  
+  // 모달 열 때 현재 값으로 초기화
+  useEffect(() => {
+    if (showManageModal && chatRoom) {
+      setRoomNameEdit(chatRoom.name);
+      setRoomPasswordEdit(chatRoom.password || '');
+    }
+  }, [showManageModal, chatRoom]);
+
   if (isLoading || loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -236,8 +422,19 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
               <span className="text-xs text-white bg-instagram-red px-2 py-1 rounded-full">관리자</span>
             )}
           </div>
-          <div className="text-sm text-gray-500 flex items-center">
-            <div className="h-1 w-6 instagram-gradient rounded-full"></div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowManageModal(true)}
+              className="text-instagram-blue hover:text-instagram-purple"
+              title="채팅방 관리"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+              </svg>
+            </button>
+            <div className="text-sm text-gray-500 flex items-center">
+              <div className="h-1 w-6 instagram-gradient rounded-full"></div>
+            </div>
           </div>
         </div>
       </header>
@@ -428,6 +625,185 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
             <p className="text-xs text-gray-500 mt-4">
               * 공지사항을 삭제하려면 내용을 비우고 저장하세요.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* 채팅방 관리 모달 */}
+      {showManageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">채팅방 관리</h3>
+              <button
+                onClick={() => setShowManageModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* 탭 네비게이션 */}
+            <div className="flex border-b mb-4">
+              <button
+                onClick={() => setManageTab('participants')}
+                className={`py-2 px-4 ${manageTab === 'participants' ? 'text-instagram-blue border-b-2 border-instagram-blue' : 'text-gray-500'}`}
+              >
+                참여자 관리
+              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setManageTab('settings')}
+                  className={`py-2 px-4 ${manageTab === 'settings' ? 'text-instagram-blue border-b-2 border-instagram-blue' : 'text-gray-500'}`}
+                >
+                  채팅방 설정
+                </button>
+              )}
+            </div>
+            
+            {/* 참여자 관리 탭 */}
+            {manageTab === 'participants' && (
+              <div className="max-h-96 overflow-y-auto">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">참여자 목록</h4>
+                {chatRoom?.participants && Object.keys(chatRoom.participants).length > 0 ? (
+                  <div className="space-y-2">
+                    {Object.values(chatRoom.participants).map((participant) => (
+                      <div key={participant.id} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium">{participant.nickname}</span>
+                          {participant.isAdmin && (
+                            <span className="ml-2 text-xs text-white bg-instagram-red px-2 py-0.5 rounded-full">관리자</span>
+                          )}
+                          {participant.id === chatRoom.createdBy && (
+                            <span className="ml-2 text-xs text-white bg-instagram-blue px-2 py-0.5 rounded-full">방장</span>
+                          )}
+                        </div>
+                        {isAdmin && participant.id !== user?.id && participant.id !== chatRoom.createdBy && (
+                          <button
+                            onClick={() => handleRemoveParticipant(participant.id)}
+                            disabled={removingUser === participant.id}
+                            className="text-instagram-red hover:text-instagram-darkpink"
+                            title="참여자 내보내기"
+                          >
+                            {removingUser === participant.id ? (
+                              <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">참여자가 없습니다.</p>
+                )}
+              </div>
+            )}
+            
+            {/* 채팅방 설정 탭 */}
+            {manageTab === 'settings' && isAdmin && (
+              <div>
+                <div className="mb-4">
+                  <label htmlFor="roomName" className="block text-sm font-medium text-gray-700 mb-1">
+                    채팅방 이름
+                  </label>
+                  <input
+                    type="text"
+                    id="roomName"
+                    value={roomNameEdit}
+                    onChange={(e) => setRoomNameEdit(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue"
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label htmlFor="roomPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                    비밀번호 (선택)
+                  </label>
+                  <input
+                    type="password"
+                    id="roomPassword"
+                    value={roomPasswordEdit}
+                    onChange={(e) => setRoomPasswordEdit(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue"
+                    placeholder="비밀번호를 입력하세요 (없으면 공개방)"
+                  />
+                </div>
+                
+                {settingsError && <p className="text-instagram-red text-sm mb-4">{settingsError}</p>}
+                
+                <div className="flex justify-end mt-6">
+                  <button
+                    onClick={() => setShowManageModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 mr-2"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleSaveSettings}
+                    disabled={savingSettings}
+                    className="px-4 py-2 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple"
+                  >
+                    {savingSettings ? '저장 중...' : '저장'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 비밀번호 확인 모달 */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">비밀번호 확인</h3>
+              <button
+                onClick={() => router.push('/chat')}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            
+            <p className="mb-4 text-sm text-gray-700">
+              이 채팅방은 비밀번호로 보호되어 있습니다. 계속하려면 비밀번호를 입력하세요.
+            </p>
+            
+            <div className="mb-4">
+              <input
+                type="password"
+                value={roomPassword}
+                onChange={(e) => setRoomPassword(e.target.value)}
+                placeholder="비밀번호를 입력하세요"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue"
+                onKeyDown={(e) => e.key === 'Enter' && handleCheckPassword()}
+              />
+              {passwordError && <p className="text-instagram-red text-sm mt-1">{passwordError}</p>}
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => router.push('/chat')}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleCheckPassword}
+                className="px-4 py-2 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple"
+              >
+                확인
+              </button>
+            </div>
           </div>
         </div>
       )}
