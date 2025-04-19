@@ -25,8 +25,11 @@ export default function Home() {
       return;
     }
     
-    if (nickname.trim().length !== 3) {
-      setError('본명 3글자를 정확히 입력해주세요.');
+    // 한글 3글자만 허용하는 정규식
+    const koreanNameRegex = /^[가-힣]{3}$/;
+    
+    if (!koreanNameRegex.test(nickname.trim())) {
+      setError('한글 본명 3글자를 정확히 입력해주세요.');
       return;
     }
     
@@ -57,6 +60,7 @@ export default function Home() {
               name="nickname"
               type="text"
               required
+              maxLength={3}
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               placeholder="본인의 본명 3글자를 분명히 입력하세요! ex)홍길동"
