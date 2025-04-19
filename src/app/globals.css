@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 38, 38, 38; /* Instagram text color */
+  --background-rgb: 250, 250, 250; /* Instagram light background */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 245, 245, 245;
+    --background-rgb: 38, 38, 38; /* Instagram dark mode background */
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background-color: rgb(var(--background-rgb));
+  min-height: 100vh;
+}
+
+/* 텍스트 입력 필드 스타일 */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+  color: rgb(38, 38, 38); /* Instagram text color */
+  background-color: rgb(255, 255, 255);
+  border-color: rgb(219, 219, 219); /* Instagram border color */
+}
+
+/* 플레이스홀더 스타일 */
+::placeholder {
+  color: rgb(142, 142, 142); /* Instagram placeholder color */
+  opacity: 1;
+}
+
+/* 스크롤바 스타일링 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(64, 93, 230, 0.3); /* Instagram blue with opacity */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(64, 93, 230, 0.5); /* Instagram blue with more opacity on hover */
+}
+
+/* 인스타그램 그라데이션 효과 */
+.instagram-gradient {
+  background: linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D, #F56040, #F77737, #FCAF45, #FFDC80);
+}
+
+/* 인스타그램 버튼 스타일 */
+.instagram-button {
+  background-color: #405DE6;
+  color: white;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  transition: all 0.2s ease;
+}
+
+.instagram-button:hover {
+  background-color: #5851DB;
+} 
