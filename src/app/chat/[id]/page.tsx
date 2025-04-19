@@ -25,9 +25,6 @@ interface ChatRoomData {
   creatorNickname: string;
   pinnedNotice?: {
     content: string;
-    createdAt: Date;
-    createdBy: string;
-    creatorNickname: string;
   }
 }
 
@@ -172,22 +169,16 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
       if (noticeContent.trim()) {
         await updateDoc(chatRoomRef, {
           pinnedNotice: {
-            content: noticeContent.trim(),
-            createdAt: serverTimestamp(),
-            createdBy: user.id,
-            creatorNickname: user.nickname
+            content: noticeContent.trim()
           }
         });
         
-        // 로컬 상태 업데이트
+        // 로컬 상태 업데이트 - UI에는 내용만 표시
         if (chatRoom) {
           setChatRoom({
             ...chatRoom,
             pinnedNotice: {
-              content: noticeContent.trim(),
-              createdAt: new Date(),
-              createdBy: user.id,
-              creatorNickname: user.nickname
+              content: noticeContent.trim()
             }
           });
         }
@@ -246,8 +237,7 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
             )}
           </div>
           <div className="text-sm text-gray-500 flex items-center">
-            <span>{chatRoom?.creatorNickname}님이 생성</span>
-            <div className="h-1 w-6 instagram-gradient rounded-full ml-2"></div>
+            <div className="h-1 w-6 instagram-gradient rounded-full"></div>
           </div>
         </div>
       </header>
@@ -256,14 +246,16 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
       {chatRoom?.pinnedNotice && (
         <div className="bg-gray-50 border-b border-gray-200">
           <div className="max-w-5xl mx-auto py-2 px-4">
-            <div className="flex items-start">
-              <div className="text-instagram-red mr-2 mt-0.5">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{chatRoom?.pinnedNotice?.content}</p>
+            <div className="flex items-start justify-between">
+              <div className="flex items-start flex-1">
+                <div className="text-instagram-red mr-2 mt-0.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{chatRoom?.pinnedNotice?.content}</p>
+                </div>
               </div>
               {isAdmin && (
                 <button
