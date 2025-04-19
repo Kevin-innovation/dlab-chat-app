@@ -67,6 +67,9 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
   const [passwordError, setPasswordError] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
 
+  // 참여자 목록 모달 관련 상태
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+
   // 사용자가 로그인하지 않은 경우 홈으로 리다이렉트
   useEffect(() => {
     if (!isLoading && !user) {
@@ -482,6 +485,12 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
     }
   }, [showManageModal, chatRoom]);
 
+  // 참여자 수 계산 함수
+  const getParticipantsCount = () => {
+    if (!chatRoom?.participants) return 0;
+    return Object.keys(chatRoom.participants).length;
+  };
+
   if (isLoading || loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -512,6 +521,15 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
             {isAdmin && (
               <span className="text-xs text-white bg-instagram-red px-2 py-1 rounded-full">관리자</span>
             )}
+            <button
+              onClick={() => setShowParticipantsModal(true)}
+              className="flex items-center gap-1 ml-2 bg-instagram-blue text-white text-xs px-2 py-1 rounded-full hover:bg-instagram-purple transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+              </svg>
+              <span>{getParticipantsCount()}</span>
+            </button>
           </div>
           <button 
             onClick={() => setShowManageModal(true)}
@@ -925,6 +943,76 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
                 className="px-4 py-2 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple"
               >
                 확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 참여자 목록 모달 */}
+      {showParticipantsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">참여자 목록 ({getParticipantsCount()}명)</h3>
+              <button
+                onClick={() => setShowParticipantsModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              {chatRoom?.participants && Object.keys(chatRoom.participants).length > 0 ? (
+                <div className="space-y-2">
+                  {Object.entries(chatRoom.participants).map(([userId, participant]) => (
+                    <div key={userId} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
+                      <div className="flex items-center">
+                        <span className="text-sm font-medium">{participant.nickname || '알 수 없음'}</span>
+                        {participant.isAdmin && (
+                          <span className="ml-2 text-xs text-white bg-instagram-red px-2 py-0.5 rounded-full">관리자</span>
+                        )}
+                        {userId === chatRoom.createdBy && (
+                          <span className="ml-2 text-xs text-white bg-instagram-blue px-2 py-0.5 rounded-full">방장</span>
+                        )}
+                        {userId === user?.id && (
+                          <span className="ml-2 text-xs text-gray-500">(나)</span>
+                        )}
+                      </div>
+                      {isAdmin && userId !== user?.id && userId !== chatRoom.createdBy && (
+                        <button
+                          onClick={() => {
+                            handleRemoveParticipant(userId);
+                            setShowParticipantsModal(false);
+                          }}
+                          disabled={removingUser === userId}
+                          className="text-instagram-red hover:text-instagram-darkpink"
+                          title="참여자 내보내기"
+                        >
+                          {removingUser === userId ? (
+                            <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">참여자가 없습니다.</p>
+              )}
+            </div>
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => setShowParticipantsModal(false)}
+                className="px-4 py-2 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple"
+              >
+                닫기
               </button>
             </div>
           </div>
