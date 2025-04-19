@@ -95,6 +95,8 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
           
           setChatRoom(roomData);
           
+          console.log('채팅방 데이터:', roomData); // 데이터 확인용 로그
+          
           // 비밀번호가 있는 방인 경우 비밀번호 확인 필요
           if (data.password && !isAdmin) {
             setShowPasswordModal(true);
@@ -311,13 +313,15 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
       if (removedParticipant) {
         const messagesRef = collection(db, 'chatRooms', params.id, 'messages');
         await addDoc(messagesRef, {
-          text: `${removedParticipant.nickname}님이 관리자에 의해 퇴장되었습니다.`,
+          text: `${removedParticipant.nickname || '알 수 없는 사용자'}님이 관리자에 의해 퇴장되었습니다.`,
           senderId: 'system',
           senderNickname: '시스템',
           timestamp: serverTimestamp(),
           isSystem: true
         });
       }
+      
+      console.log('참여자 제거 완료:', participantId);
       
     } catch (error) {
       console.error('참여자 제거 실패:', error);
@@ -388,6 +392,7 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
     if (showManageModal && chatRoom) {
       setRoomNameEdit(chatRoom.name);
       setRoomPasswordEdit(chatRoom.password || '');
+      console.log('모달 열림, 참여자 데이터:', chatRoom.participants);
     }
   }, [showManageModal, chatRoom]);
 
@@ -422,20 +427,15 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
               <span className="text-xs text-white bg-instagram-red px-2 py-1 rounded-full">관리자</span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setShowManageModal(true)}
-              className="text-instagram-blue hover:text-instagram-purple"
-              title="채팅방 관리"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-              </svg>
-            </button>
-            <div className="text-sm text-gray-500 flex items-center">
-              <div className="h-1 w-6 instagram-gradient rounded-full"></div>
-            </div>
-          </div>
+          <button 
+            onClick={() => setShowManageModal(true)}
+            className="text-instagram-blue hover:text-instagram-purple p-2"
+            title="채팅방 관리"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -669,25 +669,25 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
                 <h4 className="text-sm font-medium text-gray-700 mb-2">참여자 목록</h4>
                 {chatRoom?.participants && Object.keys(chatRoom.participants).length > 0 ? (
                   <div className="space-y-2">
-                    {Object.values(chatRoom.participants).map((participant) => (
-                      <div key={participant.id} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
+                    {Object.entries(chatRoom.participants).map(([userId, participant]) => (
+                      <div key={userId} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
                         <div className="flex items-center">
-                          <span className="text-sm font-medium">{participant.nickname}</span>
+                          <span className="text-sm font-medium">{participant.nickname || '알 수 없음'}</span>
                           {participant.isAdmin && (
                             <span className="ml-2 text-xs text-white bg-instagram-red px-2 py-0.5 rounded-full">관리자</span>
                           )}
-                          {participant.id === chatRoom.createdBy && (
+                          {userId === chatRoom.createdBy && (
                             <span className="ml-2 text-xs text-white bg-instagram-blue px-2 py-0.5 rounded-full">방장</span>
                           )}
                         </div>
-                        {isAdmin && participant.id !== user?.id && participant.id !== chatRoom.createdBy && (
+                        {isAdmin && userId !== user?.id && userId !== chatRoom.createdBy && (
                           <button
-                            onClick={() => handleRemoveParticipant(participant.id)}
-                            disabled={removingUser === participant.id}
+                            onClick={() => handleRemoveParticipant(userId)}
+                            disabled={removingUser === userId}
                             className="text-instagram-red hover:text-instagram-darkpink"
                             title="참여자 내보내기"
                           >
-                            {removingUser === participant.id ? (
+                            {removingUser === userId ? (
                               <div className="w-4 h-4 border-2 border-instagram-red rounded-full border-t-transparent animate-spin"></div>
                             ) : (
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">

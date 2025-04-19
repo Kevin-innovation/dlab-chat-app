@@ -57,6 +57,14 @@ export default function NewChatRoom() {
         createdBy: user.id,
         creatorNickname: user.nickname,
         pinnedNotice: null,
+        participants: {
+          [user.id]: {
+            id: user.id,
+            nickname: user.nickname,
+            joinedAt: new Date(),
+            isAdmin: user.isAdmin || false
+          }
+        }
       });
       router.push('/chat');
     } catch (error) {
