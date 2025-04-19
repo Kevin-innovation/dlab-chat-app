@@ -25,6 +25,11 @@ export default function Home() {
       return;
     }
     
+    if (nickname.trim().length !== 3) {
+      setError('본명 3글자를 정확히 입력해주세요.');
+      return;
+    }
+    
     setIsSubmitting(true);
     login(nickname);
     router.push('/chat');
@@ -54,7 +59,7 @@ export default function Home() {
               required
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="닉네임을 입력하세요"
+              placeholder="본인의 본명 3글자를 분명히 입력하세요! ex)홍길동"
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue focus:border-transparent text-gray-800 bg-white"
             />
             {error && <p className="mt-2 text-sm text-instagram-red">{error}</p>}
