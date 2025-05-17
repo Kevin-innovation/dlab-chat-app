@@ -68,7 +68,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   const checkAdminPassword = (password: string) => {
-    const isCorrectPassword = password === '4490';
+    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+    const isCorrectPassword = password === adminPassword;
     
     if (isCorrectPassword && user) {
       const adminUser = { ...user, isAdmin: true };
