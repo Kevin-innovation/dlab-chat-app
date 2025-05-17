@@ -75,6 +75,7 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
   const [newNickname, setNewNickname] = useState('');
   const [updatingNickname, setUpdatingNickname] = useState(false);
   const [nicknameError, setNicknameError] = useState('');
+  const [nicknameTargetUserId, setNicknameTargetUserId] = useState<string | null>(null);
 
   // 관리자 삭제 모달 관련 상태
   const [showAdminDeleteModal, setShowAdminDeleteModal] = useState(false);
@@ -505,44 +506,32 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
 
   // 닉네임 변경 함수
   const handleUpdateNickname = async () => {
-    if (!user || !newNickname.trim()) return;
-    
-    if (newNickname.trim() === user.nickname) {
+    if (!nicknameTargetUserId || !newNickname.trim()) return;
+    if (newNickname.trim() === chatRoom?.participants?.[nicknameTargetUserId]?.nickname) {
       setShowNicknameModal(false);
+      setNicknameTargetUserId(null);
       return;
     }
-    
     try {
       setUpdatingNickname(true);
       setNicknameError('');
-      
-      // UserContext의 updateNickname 함수 호출
-      const success = await updateNickname(newNickname.trim());
-      
-      if (success) {
-        // 채팅방 참여자 정보 업데이트
-        const chatRoomRef = doc(db, 'chatRooms', params.id);
-        await updateDoc(chatRoomRef, {
-          [`participants.${user.id}.nickname`]: newNickname.trim()
-        });
-        
-        // 성공 메시지 추가
-        const messagesRef = collection(db, 'chatRooms', params.id, 'messages');
-        await addDoc(messagesRef, {
-          text: `${user.nickname}님이 닉네임을 ${newNickname.trim()}(으)로 변경했습니다.`,
-          senderId: 'system',
-          senderNickname: '시스템',
-          timestamp: serverTimestamp(),
-          isSystem: true
-        });
-        
-        // 모달 닫기
-        setShowNicknameModal(false);
-      } else {
-        setNicknameError('닉네임 변경에 실패했습니다.');
-      }
+      // Firestore 업데이트
+      const chatRoomRef = doc(db, 'chatRooms', params.id);
+      await updateDoc(chatRoomRef, {
+        [`participants.${nicknameTargetUserId}.nickname`]: newNickname.trim()
+      });
+      // 시스템 메시지 추가
+      const messagesRef = collection(db, 'chatRooms', params.id, 'messages');
+      await addDoc(messagesRef, {
+        text: `${chatRoom?.participants?.[nicknameTargetUserId]?.nickname || '알 수 없음'}님의 닉네임이 ${newNickname.trim()}(으)로 변경되었습니다.`,
+        senderId: 'system',
+        senderNickname: '시스템',
+        timestamp: serverTimestamp(),
+        isSystem: true
+      });
+      setShowNicknameModal(false);
+      setNicknameTargetUserId(null);
     } catch (error) {
-      console.error('닉네임 변경 실패:', error);
       setNicknameError('닉네임 변경 중 오류가 발생했습니다.');
     } finally {
       setUpdatingNickname(false);
@@ -551,11 +540,11 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
 
   // 모달 열 때 현재 닉네임으로 초기화
   useEffect(() => {
-    if (showNicknameModal && user) {
-      setNewNickname(user.nickname);
+    if (showNicknameModal && nicknameTargetUserId && chatRoom?.participants?.[nicknameTargetUserId]) {
+      setNewNickname(chatRoom.participants[nicknameTargetUserId].nickname);
       setNicknameError('');
     }
-  }, [showNicknameModal, user]);
+  }, [showNicknameModal, nicknameTargetUserId, chatRoom]);
 
   if (isLoading || loading || !user) {
     return (
@@ -797,7 +786,10 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-800">공지사항 {chatRoom?.pinnedNotice ? '수정' : '작성'}</h3>
               <button
-                onClick={() => setShowNoticeModal(false)}
+                onClick={() => {
+                  setShowNoticeModal(false);
+                  setNicknameTargetUserId(null);
+                }}
                 className="text-gray-400 hover:text-gray-500"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -814,7 +806,10 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
             />
             <div className="flex justify-end gap-2 mt-4">
               <button
-                onClick={() => setShowNoticeModal(false)}
+                onClick={() => {
+                  setShowNoticeModal(false);
+                  setNicknameTargetUserId(null);
+                }}
                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50"
               >
                 취소
@@ -889,9 +884,13 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
                           )}
                         </div>
                         <div className="flex gap-2">
-                          {userId === user?.id && (
+                          {isAdmin && (
                             <button
-                              onClick={() => setShowNicknameModal(true)}
+                              onClick={() => {
+                                setNicknameTargetUserId(userId);
+                                setNewNickname(participant.nickname);
+                                setShowNicknameModal(true);
+                              }}
                               className="flex items-center gap-1 px-2 py-1 bg-instagram-blue text-white rounded hover:bg-instagram-purple transition-colors"
                               title="닉네임 변경"
                             >
@@ -1061,14 +1060,15 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
                         {userId === chatRoom.createdBy && (
                           <span className="ml-2 text-xs text-white bg-instagram-blue px-2 py-0.5 rounded-full">방장</span>
                         )}
-                        {userId === user?.id && (
-                          <span className="ml-2 text-xs text-gray-500">(나)</span>
-                        )}
                       </div>
                       <div className="flex gap-2">
-                        {userId === user?.id && (
+                        {isAdmin && (
                           <button
-                            onClick={() => setShowNicknameModal(true)}
+                            onClick={() => {
+                              setNicknameTargetUserId(userId);
+                              setNewNickname(participant.nickname);
+                              setShowNicknameModal(true);
+                            }}
                             className="flex items-center gap-1 px-2 py-1 bg-instagram-blue text-white rounded hover:bg-instagram-purple transition-colors"
                             title="닉네임 변경"
                           >
@@ -1124,7 +1124,10 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-800">닉네임 변경</h3>
               <button
-                onClick={() => setShowNicknameModal(false)}
+                onClick={() => {
+                  setShowNicknameModal(false);
+                  setNicknameTargetUserId(null);
+                }}
                 className="text-gray-400 hover:text-gray-500"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -1151,7 +1154,10 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
             
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setShowNicknameModal(false)}
+                onClick={() => {
+                  setShowNicknameModal(false);
+                  setNicknameTargetUserId(null);
+                }}
                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50"
               >
                 취소
