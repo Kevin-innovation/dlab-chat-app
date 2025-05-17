@@ -40,7 +40,7 @@ interface ChatRoomData {
 
 export default function ChatRoom({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const { user, isLoading, isAdmin, updateNickname } = useUser();
+  const { user, isLoading, isAdmin, updateNickname, checkAdminPassword } = useUser();
   const [chatRoom, setChatRoom] = useState<ChatRoomData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -75,6 +75,12 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
   const [newNickname, setNewNickname] = useState('');
   const [updatingNickname, setUpdatingNickname] = useState(false);
   const [nicknameError, setNicknameError] = useState('');
+
+  // 관리자 삭제 모달 관련 상태
+  const [showAdminDeleteModal, setShowAdminDeleteModal] = useState(false);
+  const [adminDeletePw, setAdminDeletePw] = useState('');
+  const [pendingDeleteUserId, setPendingDeleteUserId] = useState<string | null>(null);
+  const [adminDeleteError, setAdminDeleteError] = useState('');
 
   // 사용자가 로그인하지 않은 경우 홈으로 리다이렉트
   useEffect(() => {
@@ -1156,6 +1162,54 @@ export default function ChatRoom({ params }: { params: { id: string } }) {
                 className="px-4 py-2 bg-instagram-blue text-white rounded-md hover:bg-instagram-purple"
               >
                 {updatingNickname ? '변경 중...' : '변경'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 관리자 삭제 모달 */}
+      {showAdminDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">관리자 삭제 확인</h3>
+            <p className="mb-2 text-sm text-gray-700">관리자를 삭제하려면 관리자 비밀번호를 입력하세요.</p>
+            <input
+              type="password"
+              value={adminDeletePw}
+              onChange={e => setAdminDeletePw(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue"
+              placeholder="관리자 비밀번호"
+            />
+            {adminDeleteError && <p className="text-instagram-red text-sm mt-1">{adminDeleteError}</p>}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setShowAdminDeleteModal(false);
+                  setAdminDeletePw('');
+                  setPendingDeleteUserId(null);
+                  setAdminDeleteError('');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={async () => {
+                  if (checkAdminPassword(adminDeletePw)) {
+                    await handleRemoveParticipant(pendingDeleteUserId!);
+                    setShowAdminDeleteModal(false);
+                    setAdminDeletePw('');
+                    setPendingDeleteUserId(null);
+                    setAdminDeleteError('');
+                    setShowParticipantsModal(false);
+                  } else {
+                    setAdminDeleteError('비밀번호가 올바르지 않습니다.');
+                  }
+                }}
+                className="px-4 py-2 bg-instagram-red text-white rounded-md hover:bg-instagram-darkpink"
+              >
+                삭제
               </button>
             </div>
           </div>
