@@ -113,6 +113,16 @@ export default function AdminPage() {
     }).format(date);
   };
 
+  const checkAdminPassword = async (pw: string) => {
+    const res = await fetch('/api/admin/check-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    const data = await res.json();
+    return data.ok;
+  };
+
   if (isLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -299,7 +309,7 @@ export default function AdminPage() {
               </button>
               <button
                 onClick={async () => {
-                  const ok = await (window as any).checkAdminPassword?.(adminDeletePw);
+                  const ok = await checkAdminPassword(adminDeletePw);
                   if (ok) {
                     handleDeleteUser(pendingDeleteUserId!);
                     setShowAdminDeleteModal(false);
