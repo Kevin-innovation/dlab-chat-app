@@ -20,6 +20,14 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editNickname, setEditNickname] = useState('');
+  const [nicknameLoading, setNicknameLoading] = useState(false);
+  const [nicknameError, setNicknameError] = useState('');
+  const [showAdminDeleteModal, setShowAdminDeleteModal] = useState(false);
+  const [adminDeletePw, setAdminDeletePw] = useState('');
+  const [pendingDeleteUserId, setPendingDeleteUserId] = useState<string | null>(null);
+  const [adminDeleteError, setAdminDeleteError] = useState('');
 
   // 사용자가 로그인하지 않았거나 관리자가 아닌 경우 리다이렉트
   useEffect(() => {
@@ -66,6 +74,31 @@ export default function AdminPage() {
       setError('사용자 삭제 중 오류가 발생했습니다.');
     } finally {
       setDeleteLoading(null);
+    }
+  };
+
+  const handleEditNickname = async (userId: string) => {
+    if (!editNickname.trim()) {
+      setNicknameError('닉네임을 입력하세요.');
+      return;
+    }
+    setNicknameLoading(true);
+    setNicknameError('');
+    try {
+      // Firestore 업데이트
+      const res = await fetch(`/api/admin/update-nickname`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, nickname: editNickname.trim() })
+      });
+      if (!res.ok) throw new Error('닉네임 변경 실패');
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, nickname: editNickname.trim() } : u));
+      setEditingUserId(null);
+      setEditNickname('');
+    } catch (e) {
+      setNicknameError('닉네임 변경 중 오류가 발생했습니다.');
+    } finally {
+      setNicknameLoading(false);
     }
   };
 
@@ -156,7 +189,48 @@ export default function AdminPage() {
                 <tbody>
                   {users.map((userItem) => (
                     <tr key={userItem.id} className="hover:bg-gray-50">
-                      <td className="py-2 px-3 border-b text-sm">{userItem.nickname}</td>
+                      <td className="py-2 px-3 border-b text-sm">
+                        {editingUserId === userItem.id ? (
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              value={editNickname}
+                              onChange={e => setEditNickname(e.target.value)}
+                              className="border px-2 py-1 rounded text-sm"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleEditNickname(userItem.id)}
+                              disabled={nicknameLoading}
+                              className="bg-instagram-blue text-white px-2 py-1 rounded text-xs hover:bg-instagram-purple"
+                            >
+                              저장
+                            </button>
+                            <button
+                              onClick={() => { setEditingUserId(null); setEditNickname(''); setNicknameError(''); }}
+                              className="text-gray-400 px-2 py-1 text-xs"
+                            >
+                              취소
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 items-center">
+                            <span>{userItem.nickname}</span>
+                            <button
+                              onClick={() => { setEditingUserId(userItem.id); setEditNickname(userItem.nickname); setNicknameError(''); }}
+                              className="text-instagram-blue hover:text-instagram-purple"
+                              title="닉네임 수정"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                        {editingUserId === userItem.id && nicknameError && (
+                          <div className="text-xs text-instagram-red mt-1">{nicknameError}</div>
+                        )}
+                      </td>
                       <td className="py-2 px-3 border-b text-xs text-gray-500 truncate max-w-[120px]">{userItem.id}</td>
                       <td className="py-2 px-3 border-b text-xs">{formatDate(userItem.createdAt)}</td>
                       <td className="py-2 px-3 border-b">
@@ -168,14 +242,17 @@ export default function AdminPage() {
                       </td>
                       <td className="py-2 px-3 border-b text-right">
                         <button
-                          onClick={() => handleDeleteUser(userItem.id)}
-                          disabled={deleteLoading === userItem.id || userItem.isAdmin}
-                          className={`text-white p-1.5 rounded-md ${
-                            userItem.isAdmin 
-                              ? 'bg-gray-300 cursor-not-allowed' 
-                              : 'bg-instagram-red hover:bg-instagram-darkpink'
-                          }`}
-                          title={userItem.isAdmin ? "관리자는 삭제할 수 없습니다" : "사용자 삭제"}
+                          onClick={() => {
+                            if (userItem.isAdmin) {
+                              setPendingDeleteUserId(userItem.id);
+                              setShowAdminDeleteModal(true);
+                            } else {
+                              handleDeleteUser(userItem.id);
+                            }
+                          }}
+                          disabled={deleteLoading === userItem.id}
+                          className={`text-white p-1.5 rounded-md ${deleteLoading === userItem.id ? 'bg-gray-300' : 'bg-instagram-red hover:bg-instagram-darkpink'}`}
+                          title={userItem.isAdmin ? "관리자 삭제" : "사용자 삭제"}
                         >
                           {deleteLoading === userItem.id ? (
                             <div className="w-4 h-4 border-2 border-white rounded-full border-t-transparent animate-spin"></div>
@@ -194,6 +271,53 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      {showAdminDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">관리자 삭제 확인</h3>
+            <p className="mb-2 text-sm text-gray-700">관리자를 삭제하려면 관리자 비밀번호를 입력하세요.</p>
+            <input
+              type="password"
+              value={adminDeletePw}
+              onChange={e => setAdminDeletePw(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-instagram-blue"
+              placeholder="관리자 비밀번호"
+            />
+            {adminDeleteError && <p className="text-instagram-red text-sm mt-1">{adminDeleteError}</p>}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setShowAdminDeleteModal(false);
+                  setAdminDeletePw('');
+                  setPendingDeleteUserId(null);
+                  setAdminDeleteError('');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={async () => {
+                  const ok = await (window as any).checkAdminPassword?.(adminDeletePw);
+                  if (ok) {
+                    handleDeleteUser(pendingDeleteUserId!);
+                    setShowAdminDeleteModal(false);
+                    setAdminDeletePw('');
+                    setPendingDeleteUserId(null);
+                    setAdminDeleteError('');
+                  } else {
+                    setAdminDeleteError('비밀번호가 올바르지 않습니다.');
+                  }
+                }}
+                className="px-4 py-2 bg-instagram-red text-white rounded-md hover:bg-instagram-darkpink"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
