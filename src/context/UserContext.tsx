@@ -67,18 +67,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
     removeUserFromStorage();
   };
 
-  const checkAdminPassword = (password: string) => {
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
-    const isCorrectPassword = password === adminPassword;
-    
-    if (isCorrectPassword && user) {
-      const adminUser = { ...user, isAdmin: true };
-      setUser(adminUser);
-      setIsAdmin(true);
-      saveUserToStorage(adminUser);
-    }
-    
-    return isCorrectPassword;
+  const checkAdminPassword = (_password: string) => {
+    // 프론트엔드에서는 항상 false 반환 (API로만 검증)
+    return false;
   };
   
   // 모든 사용자 목록 가져오기 (관리자 전용)
